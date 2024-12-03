@@ -39,6 +39,47 @@ namespace EtsySync.Migrations
                     b.ToTable("Clients");
                 });
 
+            modelBuilder.Entity("SharedProject.Models.CompressedFile", b =>
+                {
+                    b.Property<Guid>("ZipFileId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<byte[]>("FileData")
+                        .IsRequired()
+                        .HasColumnType("varbinary(max)");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("ZipFileId");
+
+                    b.ToTable("ZipFiles");
+                });
+
+            modelBuilder.Entity("SharedProject.Models.EncryptionKey", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Key")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("EncryptionKeys");
+                });
+
             modelBuilder.Entity("SharedProject.Models.InvoiceItem", b =>
                 {
                     b.Property<Guid>("InvoiceId")
@@ -83,8 +124,8 @@ namespace EtsySync.Migrations
                     b.Property<Guid?>("InvoiceItemInvoiceId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<int>("SerialNumber")
-                        .HasColumnType("int");
+                    b.Property<long>("SerialNumber")
+                        .HasColumnType("bigint");
 
                     b.HasKey("SalesId");
 

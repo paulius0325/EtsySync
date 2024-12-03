@@ -1,16 +1,16 @@
 ﻿using ClosedXML.Excel;
+using SharedProject.Dtos;
 using SharedProject.Models;
 
 namespace EtsySync.Services
 {
     public class ClientService
     {
-        public void WorksheetClient(IXLWorksheet worksheet, List<Client> clientsData)
+        public void WorksheetClient(IXLWorksheet worksheet, List<ClientDto> clientsDtoData)
         {
-            //worksheet.PageSetup.PageOrientation = XLPageOrientation.Landscape;
-            //worksheet.Column("C").Width = 20;
+          
             //---------------------------Kliento informacija--------------------
-            foreach (var client in clientsData)
+            foreach (var ClientDto in clientsDtoData)
             {
                 var buyer = worksheet.Range("J9:K9");
                 buyer.Merge();
@@ -21,7 +21,7 @@ namespace EtsySync.Services
 
                 var buyerName = worksheet.Range("L9:M9");
                 buyerName.Merge();
-                buyerName.Value = client.Buyer;
+                buyerName.Value = ClientDto.Buyer;
                 buyerName.Style.Font.FontSize = 9;
                 buyerName.Style.Font.Bold = true;
 
@@ -32,9 +32,10 @@ namespace EtsySync.Services
                 clientAddress.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
                 clientAddress.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
 
+
                 var clientAddressValue = worksheet.Range("L10:M12");
                 clientAddressValue.Merge();
-                clientAddressValue.Value = client.Address;
+                clientAddressValue.Value = ClientDto.Address;
                 clientAddressValue.Style.Font.FontSize = 10;
                 clientAddressValue.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
                 clientAddressValue.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;

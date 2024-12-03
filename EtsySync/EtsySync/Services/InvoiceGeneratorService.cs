@@ -1,5 +1,6 @@
 ﻿using ClosedXML.Excel;
 using EtsySync.Interface;
+using SharedProject.Dtos;
 using SharedProject.Models;
 
 namespace EtsySync.Services
@@ -16,21 +17,29 @@ namespace EtsySync.Services
             _sellerService = sellerService;
             _clientService = clientService;
         }
-        
 
-        public async Task<byte[]> GenerateInvoiceAsync(List<SalesItem> salesData, List<InvoiceItem> invoiceItems, DateTime date, int serialNumber, List<Client> clientsData)
+
+        public async Task<byte[]> GenerateInvoiceAsync(List<SalesItem> salesData, List<InvoiceItem> invoiceItems, DateTime date, long serialNumber, List<Client> clientsData)
         {
-            byte[] fileData = GenerateInvoiceFile(salesData, invoiceItems, date, serialNumber, clientsData);
+
+            List<ClientDto> clientsDtoData = clientsData.Select(client => new ClientDto
+            {
+                Buyer = client.Buyer,
+                Address = client.Address
+            }).ToList();
+
+
+            byte[] fileData = GenerateInvoiceFile(salesData, invoiceItems, date, serialNumber, clientsDtoData);
             return fileData;
         }
 
-        private byte[] GenerateInvoiceFile(List<SalesItem> salesData, List<InvoiceItem> invoiceItems, DateTime date, int serialNumber, List<Client> clientsData)
+        private byte[] GenerateInvoiceFile(List<SalesItem> salesData, List<InvoiceItem> invoiceItems, DateTime date, long serialNumber, List<ClientDto> clientsDtoData)
         {
             using (var workbook = new XLWorkbook())
             {
                 var worksheet = workbook.Worksheets.Add("Invoice");
 
-                //------------------- Title -------------------
+                // Pavadinimo formatavimas
                 var titleRange = worksheet.Range("B2:T2");
                 titleRange.Merge();
                 titleRange.Value = "SASKAITA - FAKTŪRA / INVOICE";
@@ -38,41 +47,23 @@ namespace EtsySync.Services
                 titleRange.Style.Font.FontSize = 15;
                 titleRange.Style.Alignment.SetHorizontal(XLAlignmentHorizontalValues.Center);
 
-                //------------------- Serial Number -------------------
-                var serialTextRange = worksheet.Range("G4:I4");
-                serialTextRange.Merge();
-                serialTextRange.Value = "Serija / Serial Nr:";
-                serialTextRange.Style.Font.FontSize = 11;
-                serialTextRange.Style.Alignment.SetHorizontal(XLAlignmentHorizontalValues.Right);
+                worksheet.Cell("J4").Value = $"Serial Number: {serialNumber}";
+                worksheet.Cell("J5").Value = $"Date: {date:yyyy-MM-dd}";
 
-                var serialNumberRange = worksheet.Cell("L4");
-                serialNumberRange.Value = serialNumber.ToString();
-                serialNumberRange.Style.Font.Bold = true;
-                serialNumberRange.Style.Font.FontSize = 12;
-                serialNumberRange.Style.Alignment.SetHorizontal(XLAlignmentHorizontalValues.Left);
-
-                //------------------- Date -------------------
-                var dateRange = worksheet.Range("J6:L6");
-                dateRange.Merge();
-                dateRange.Value = $"{date.ToString("yyyy-MM-dd")}";
-                dateRange.Style.Font.FontSize = 11;
-                dateRange.Style.Alignment.SetHorizontal(XLAlignmentHorizontalValues.Left);
-
-                //------------------- Table -------------------
                 _salesDataTableService.WorksheetsTable(worksheet, invoiceItems);
 
-                //------------------Client---------------------
-                _clientService.WorksheetClient(worksheet, clientsData);
-                //------------------Seller---------------------
+
+                _clientService.WorksheetClient(worksheet, clientsDtoData);
+
                 _sellerService.WorksheetSeller(worksheet);
 
-                //------------------- Save to Stream -------------------
-                using (var stream = new MemoryStream())
+                using (var memoryStream = new MemoryStream())
                 {
-                    workbook.SaveAs(stream);
-                    return stream.ToArray();
+                    workbook.SaveAs(memoryStream);
+                    return memoryStream.ToArray();
                 }
             }
         }
+
     }
 }

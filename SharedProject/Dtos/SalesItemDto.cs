@@ -2,10 +2,11 @@
 {
     public class SalesItemDto
     {
-        public byte[]? FileData { get; set; }
-        public string? FileName { get; set; }
+        public long OrderId { get; set; }
         public DateTime CreatedDate { get; set; }
-        public int SerialNumber { get; set; }
+        public string? ItemName { get; set; }
+        public int Quantity { get; set; }
+        public decimal Price { get; set; }
         public ClientDto? ClientDto { get; set; }
     }
 }

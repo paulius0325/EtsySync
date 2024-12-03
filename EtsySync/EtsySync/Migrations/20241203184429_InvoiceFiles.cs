@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace EtsySync.Migrations
 {
     /// <inheritdoc />
-    public partial class EmptyExcel : Migration
+    public partial class InvoiceFiles : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -25,6 +25,20 @@ namespace EtsySync.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "EncryptionKeys",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Key = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_EncryptionKeys", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "InvoiceItems",
                 columns: table => new
                 {
@@ -40,6 +54,20 @@ namespace EtsySync.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "ZipFiles",
+                columns: table => new
+                {
+                    ZipFileId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    FileName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    FileData = table.Column<byte[]>(type: "varbinary(max)", nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ZipFiles", x => x.ZipFileId);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "SalesItems",
                 columns: table => new
                 {
@@ -47,7 +75,7 @@ namespace EtsySync.Migrations
                     FileData = table.Column<byte[]>(type: "varbinary(max)", nullable: true),
                     FileName = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    SerialNumber = table.Column<int>(type: "int", nullable: false),
+                    SerialNumber = table.Column<long>(type: "bigint", nullable: false),
                     ClientId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     InvoiceItemInvoiceId = table.Column<Guid>(type: "uniqueidentifier", nullable: true)
                 },
@@ -81,7 +109,13 @@ namespace EtsySync.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
+                name: "EncryptionKeys");
+
+            migrationBuilder.DropTable(
                 name: "SalesItems");
+
+            migrationBuilder.DropTable(
+                name: "ZipFiles");
 
             migrationBuilder.DropTable(
                 name: "Clients");

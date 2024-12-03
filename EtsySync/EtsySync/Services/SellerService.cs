@@ -6,7 +6,7 @@ namespace EtsySync.Services
     {
         public void WorksheetSeller(IXLWorksheet worksheet)
         {
-            
+
             //-----------------Pardavejo infomacija------------------
             var seller = worksheet.Range("C9:D9");
             seller.Merge();

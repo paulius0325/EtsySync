@@ -1,8 +1,8 @@
 ﻿namespace EtsySync.Interface
 {
-    public interface ISerialNumberService
-    {
-        Task<int> GenerateSerialNumberAsync();
-        Task<int> GetStartingSerialNumberAsync();
-    }
+    //public interface ISerialNumberService
+    //{
+    //    Task<int> GenerateSerialNumberAsync();
+    //    Task<int> GetStartingSerialNumberAsync();
+    //}
 }

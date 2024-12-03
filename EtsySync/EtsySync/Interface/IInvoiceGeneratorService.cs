@@ -4,7 +4,7 @@ namespace EtsySync.Interface
 {
     public interface IInvoiceGeneratorService
     {
-        Task<byte[]> GenerateInvoiceAsync(List<SalesItem> salesData, List<InvoiceItem> invoiceItems, DateTime date, int serialNumber, List<Client> clientsData);
+        Task<byte[]> GenerateInvoiceAsync(List<SalesItem> salesData, List<InvoiceItem> invoiceItems, DateTime date, long serialNumber, List<Client> clientsData);
 
     }
 }

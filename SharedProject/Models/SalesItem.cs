@@ -9,7 +9,7 @@ namespace SharedProject.Models
         public byte[]? FileData { get; set; }
         public string? FileName { get; set; }
         public DateTime CreatedDate { get; set; }
-        public int SerialNumber { get; set; }
+        public long SerialNumber { get; set; }
         public Client? Client { get; set; }
         public InvoiceItem? InvoiceItem { get; set; }
     }
