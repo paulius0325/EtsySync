@@ -35,6 +35,7 @@ namespace EtsySync.Services
         //private readonly ISerialNumberService _serialNumberService;
         //ISerialNumberService serialNumberService,
         //_serialNumberService = serialNumberService;
+
         public async Task<byte[]> GenerateInvoicesZipForCsvAsync(IFormFile file)
         {
             var salesItems = _csvParserService.ParseCsv(file);
@@ -46,6 +47,12 @@ namespace EtsySync.Services
             {
                 foreach (var sale in salesItems)
                 {
+                    // Skenuojama Csv faila ar yra sutampanciu saskaitu su jau esamomis duomenu bazeje
+                    if (await _invoiceRepository.ExistsBySerialNumberAsync(sale.SerialNumber))
+                    {
+                        continue; // Pagreitina failo apdorojima, praleisdamas jau egzistuojancias duomenu bazeje saskaitas
+                    }
+
                     var invoiceItems = new List<InvoiceItem>
             {
                 new InvoiceItem
@@ -56,7 +63,7 @@ namespace EtsySync.Services
                 }
             };
 
-                    // Kuriamas Excel saskaitos failas
+                    // Generuojamas Excel saskaitos failas
                     byte[] invoiceFile = await _invoiceGeneratorService.GenerateInvoiceAsync(
                         new List<SalesItem> { sale },
                         invoiceItems,
@@ -72,12 +79,12 @@ namespace EtsySync.Services
                         }
                     );
 
-                    // Kiekvienas Excel saskaitos failas idedamas i zip faila
+                    // saskaitu failai sudedami i zip faila
                     var zipEntry = zipArchive.CreateEntry($"Invoice_{sale.SerialNumber}.xlsx", CompressionLevel.Optimal);
                     using var entryStream = zipEntry.Open();
                     await entryStream.WriteAsync(invoiceFile, 0, invoiceFile.Length);
 
-                    // Kiekvienas excel saskaitos failas atskirai issaugojamas duomenu bazeje
+                    // saskaitos failas issaugojamas duomenu bazeje
                     var generatedSalesItem = new SalesItem
                     {
                         SalesId = Guid.NewGuid(),
@@ -94,17 +101,17 @@ namespace EtsySync.Services
                             Buyer = sale.Client.Buyer,
                             Address = sale.Client.Address
                         },
-                        FileData = invoiceFile, // Pridedamas saskaitos failo informacija
-                        FileName = $"Invoice_{sale.SerialNumber}.xlsx" // Pridedamas saskaitos failo pavadinimas
+                        FileData = invoiceFile,
+                        FileName = $"Invoice_{sale.SerialNumber}.xlsx"
                     };
 
                     await _invoiceRepository.AddInvoiceAsync(generatedSalesItem);
                 }
             }
 
-            byte[] zipData = memoryStream.ToArray(); // Gaunama Zip failo informacija
+            byte[] zipData = memoryStream.ToArray();
 
-            // Zip failas issaugojamas duomenu bazeje
+            // zip failas issaugomas duomenu bazeje
             await _invoiceRepository.AddZipFileAsync(
                 $"Invoices_{DateTime.UtcNow:yyyyMMddHHmmss}.zip",
                 zipData,
@@ -112,6 +119,27 @@ namespace EtsySync.Services
             );
 
             return zipData;
+        }
+
+        public async Task<byte[]> GetInvoiceBySerialNumberAsync(long serialNumber)
+        {
+            return await _invoiceRepository.GetInvoiceFileDataBySerialNumberAsync(serialNumber);
+        }
+
+        public async Task<bool> DeleteInvoiceBySerialNumberAsync(long serialNumber)
+        {
+            // Perduodama istrynimo uzklausa informacijos valdymo sluoksniui
+            return await _invoiceRepository.DeleteInvoiceFileAndDataAsync(serialNumber);
+        }
+
+        //public async Task<bool> DeleteZipFileAndRelatedDataAsync(Guid zipFileId)
+        //{
+        //    return await _invoiceRepository.DeleteZipFileAsync(zipFileId);
+        //}
+
+        public async Task<bool> DeleteAllExcelFilesAndRelatedDataAsync()
+        {
+            return await _invoiceRepository.DeleteAllExcelFilesAndRelatedDataAsync();
         }
 
 
@@ -197,177 +225,5 @@ namespace EtsySync.Services
         //    //await _invoiceRepository.AddInvoiceAsync(salesItem);
         //}
 
-        //public async Task<(byte[]? FileData, string? FileName)> GetLastGeneratedInvoiceFileAsync()
-        //{
-        //    var lastInvoice = await _invoiceRepository.GetLastGeneratedInvoiceAsync();
-
-        //    if (lastInvoice == null)
-        //    {
-        //        return (null, null);
-        //    }
-
-
-        //    string encryptionKey = await _encryptionService.GetEncryptionKeyAsync();
-
-
-        //    byte[] decryptedFileData = _encryptionService.DecryptData(lastInvoice.FileData, encryptionKey);
-        //    return (decryptedFileData, lastInvoice.FileName);
-        //}
-
-        //public async Task<(byte[]? FileData, string? FileName)> GetInvoiceBySerialNumberAsync(int serialNumber)
-        //{
-        //    var invoice = await _invoiceRepository.GetInvoiceBySerialNumberAsync(serialNumber);
-
-        //    if (invoice == null)
-        //    {
-        //        return (null, null);
-        //    }
-
-
-        //    string encryptionKey = await _encryptionService.GetEncryptionKeyAsync();
-
-
-        //    byte[] decryptedFileData = _encryptionService.DecryptData(invoice.FileData, encryptionKey);
-        //    return (decryptedFileData, invoice.FileName);
-        //}
-
-
-
-        //public async Task GenerateAndSaveEmptyInvoiceAsync(string? fileName = null)
-        //{
-            //int serialNumber = await _serialNumberService.GenerateSerialNumberAsync();
-
-            //var emptySalesData = new List<SalesItem>();
-            //var emptyInvoiceItems = new List<InvoiceItem>();
-            //DateTime currentDate = DateTime.Now;
-            //var clientsData = GetClientsData();
-
-            //byte[] fileData = await _invoiceGeneratorService.GenerateInvoiceAsync(
-            //    emptySalesData,
-            //    emptyInvoiceItems,
-            //    currentDate,
-            //    serialNumber,
-            //    clientsData
-            //);
-
-
-            //string encryptionKey = await _encryptionService.GetEncryptionKeyAsync();
-            //byte[] encryptedFileData = _encryptionService.EncryptData(fileData, encryptionKey);
-
-            //var salesItem = new SalesItem
-            //{
-            //    FileData = encryptedFileData,
-            //    FileName = fileName ?? $"EmptyInvoice_{serialNumber}.xlsx",
-            //    CreatedDate = DateTime.Now,
-            //    SerialNumber = serialNumber
-            //};
-
-            //await _invoiceRepository.AddInvoiceAsync(salesItem);
-       // }
-
-        //public async Task<byte[]> CreateInvoicesZip(IEnumerable<(byte[] fileData, string fileName)> allInvoices, string password)
-        //{
-        //    using var memoryStream = new MemoryStream();
-
-
-        //    using (var zipStream = new ZipOutputStream(memoryStream))
-        //    {
-        //        zipStream.Password = password;
-        //        zipStream.IsStreamOwner = false;
-        //        zipStream.SetLevel(5);
-
-        //        foreach (var invoice in allInvoices)
-        //        {
-
-
-        //            string encryptionKey = await _encryptionService.GetEncryptionKeyAsync();
-        //            byte[] encryptedFileData = _encryptionService.EncryptData(invoice.fileData, encryptionKey);
-
-
-        //            var zipEntry = new ZipEntry($"{invoice.fileName}.xlsx")
-        //            {
-        //                DateTime = DateTime.Now
-        //            };
-
-        //            zipStream.PutNextEntry(zipEntry);
-
-
-        //            await zipStream.WriteAsync(invoice.fileData, 0, invoice.fileData.Length);
-        //            zipStream.CloseEntry();
-        //        }
-        //    }
-
-        //    return memoryStream.ToArray();
-        //}
-
-        //public async Task<IEnumerable<(byte[] fileData, string fileName)>> GetAllInvoicesFromDatabaseAsync()
-        //{
-        //    var invoices = await _invoiceRepository.GetAllInvoicesAsync();
-
-        //    string encryptionKey = await _encryptionService.GetEncryptionKeyAsync();
-
-        //    return invoices.Select(invoice =>
-        //    {
-        //        byte[] decryptedFileData = _encryptionService.DecryptData(invoice.FileData, encryptionKey);
-        //        return (decryptedFileData, invoice.FileName);
-        //    });
-        //}
-
-        //private List<Client> GetClientsData()
-        //{
-        //    return new List<Client>
-        //    {
-        //        new Client
-        //        {
-        //            Buyer = "Buyer",
-        //            Address = "Address"
-        //        }
-        //    };
-        //}
-
-        //public async Task SaveOrUpdateUploadedFileAsync(IFormFile file, int serialNumber)
-        //{
-        //    if (file == null || file.Length == 0)
-        //        throw new ArgumentException("Invalid file.");
-
-        //    var fileName = file.FileName;
-
-        //    using (var memoryStream = new MemoryStream())
-        //    {
-        //        await file.CopyToAsync(memoryStream);
-        //        var fileData = memoryStream.ToArray();
-
-        //        string encryptionKey = await _encryptionService.GetEncryptionKeyAsync();
-        //        byte[] encryptedFileData = _encryptionService.EncryptData(fileData, encryptionKey);
-
-
-                //var existingSalesItem = await _invoiceRepository.GetInvoiceBySerialNumberAsync(serialNumber);
-                //if (existingSalesItem != null)
-                //{
-
-                //    existingSalesItem.FileData = encryptedFileData;
-                //    existingSalesItem.FileName = fileName;
-                //    await _invoiceRepository.UpdateInvoiceAsync(existingSalesItem);
-                //}
-                //else
-                //{
-
-                //    var newSalesItem = new SalesItem
-                //    {
-                //        SerialNumber = serialNumber,
-                //        FileData = encryptedFileData,
-                //        FileName = fileName,
-                //        CreatedDate = DateTime.UtcNow,
-                //    };
-                //    await _invoiceRepository.AddInvoiceAsync(newSalesItem);
-                //}
-           // }
-       // }
-
-        //public async Task<int> GetNextSerialNumberAsync()
-        //{
-
-        //    return await _serialNumberService.GenerateSerialNumberAsync();
-        //}
     }
 }

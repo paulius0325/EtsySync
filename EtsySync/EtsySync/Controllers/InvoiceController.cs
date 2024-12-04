@@ -43,6 +43,73 @@ namespace EtsySync.Controllers
             }
         }
 
+        [HttpGet("by-serial/{serialNumber}")]
+        public async Task<IActionResult> GetInvoiceBySerialNumber(long serialNumber)
+        {
+            try
+            {
+                var fileData = await _invoiceService.GetInvoiceBySerialNumberAsync(serialNumber);
+                return File(fileData, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"Invoice_{serialNumber}.xlsx");
+            }
+            catch (Exception ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+        }
+
+        [HttpDelete("delete-invoice/{serialNumber}")]
+        public async Task<IActionResult> DeleteInvoice(long serialNumber)
+        {
+            try
+            {
+                var isDeleted = await _invoiceService.DeleteInvoiceBySerialNumberAsync(serialNumber);
+                if (!isDeleted)
+                    return NotFound(new { Message = $"Invoice with Serial Number {serialNumber} not found." });
+
+                return Ok(new { Message = "Invoice and associated data deleted successfully." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { Message = ex.Message });
+            }
+        }
+
+        //[HttpDelete("delete-zip/{zipFileId}")]
+        //public async Task<IActionResult> DeleteZipFile(Guid zipFileId)
+        //{
+        //    try
+        //    {
+        //        var isDeleted = await _invoiceService.DeleteZipFileAndRelatedDataAsync(zipFileId);
+        //        if (!isDeleted)
+        //            return NotFound(new { Message = $"Zip file with ID {zipFileId} not found." });
+
+        //        return Ok(new { Message = "Zip file and related Excel files deleted successfully." });
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return BadRequest(new { Message = ex.Message });
+        //    }
+        //}
+
+        [HttpDelete("delete-all-excel")]
+        public async Task<IActionResult> DeleteAllExcelFiles()
+        {
+            try
+            {
+                var isDeleted = await _invoiceService.DeleteAllExcelFilesAndRelatedDataAsync();
+                if (!isDeleted)
+                    return NotFound(new { Message = "No Excel files found to delete." });
+
+                return Ok(new { Message = "All Excel files and related data deleted successfully." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { Message = ex.Message });
+            }
+        }
+
+
+
         //[HttpGet("test-token")]
         //public async Task<IActionResult> TestOAuthToken()
         //{
@@ -56,8 +123,6 @@ namespace EtsySync.Controllers
         //        return BadRequest(new { Error = ex.Message });
         //    }
         //}
-
-
 
 
         //[HttpPost("generate/{Shop_id}/{Listing_id}")]
@@ -99,115 +164,7 @@ namespace EtsySync.Controllers
         //    }
         //}
 
-        //[HttpGet("download")]
-        //public async Task<IActionResult> DownloadLastInvoice()
-        //{
-        //    try
-        //    {
-        //        var (fileData, fileName) = await _invoiceService.GetLastGeneratedInvoiceFileAsync();
 
-        //        if (fileData == null || fileName == null)
-        //        {
-        //            return NotFound(new { message = "No invoice available for download." });
-        //        }
-
-        //        return File(fileData, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return BadRequest(new { message = "Error downloading invoice", error = ex.Message });
-        //    }
-        //}
-
-        //[HttpGet("download/{serialNumber}")]
-        //public async Task<IActionResult> DownloadInvoiceBySerialNumber(int serialNumber)
-        //{
-        //    try
-        //    {
-        //        var (fileData, fileName) = await _invoiceService.GetInvoiceBySerialNumberAsync(serialNumber);
-
-        //        if (fileData == null || fileName == null)
-        //        {
-        //            return NotFound(new { message = $"Invoice with serial number {serialNumber} not found." });
-        //        }
-
-        //        return File(fileData, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return BadRequest(new { message = "Error downloading invoice", error = ex.Message });
-        //    }
-        //}
-
-
-        //[HttpPost("generate-empty-invoice")]
-        //public async Task<IActionResult> GenerateEmptyInvoice(string? fileName = null)
-        //{
-        //    try
-        //    {
-        //        await _invoiceService.GenerateAndSaveEmptyInvoiceAsync(fileName);
-        //        return Ok(new { message = $"Empty invoice '{fileName ?? "EmptyInvoice"}.xlsx' generated and saved successfully." });
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return BadRequest(new { message = "Error generating empty invoice", error = ex.Message });
-        //    }
-        //}
-
-        //[HttpGet("download-all-invoices-zip")]
-        //public async Task<IActionResult> DownloadAllInvoicesZip()
-        //{
-        //    try
-        //    {
-
-        //        var allInvoices = await _invoiceService.GetAllInvoicesFromDatabaseAsync();
-
-        //        if (allInvoices == null || !allInvoices.Any())
-        //        {
-        //            return NotFound(new { message = "No invoices found in the database" });
-        //        }
-
-
-        //        string generatedPassword = Guid.NewGuid().ToString("N");
-
-
-        //        byte[] zipFile = await _invoiceService.CreateInvoicesZip(allInvoices, generatedPassword);
-
-
-        //        Response.Headers.Add("Content-Disposition", "attachment; filename=Invoices.zip");
-
-
-        //        var fileResult = File(zipFile, "application/zip", "Invoices.zip");
-
-
-        //        Response.Headers.Add("X-Zip-Password", generatedPassword);
-
-        //        return fileResult;
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return BadRequest(new { message = "Error generating the zip file", error = ex.Message });
-        //    }
-        //}
-
-        //[HttpPost("upload")]
-        //public async Task<IActionResult> UploadFile(IFormFile file)
-        //{
-        //    try
-        //    {
-
-        //        int nextSerialNumber = await _invoiceService.GetNextSerialNumberAsync();
-
-
-        //        await _invoiceService.SaveOrUpdateUploadedFileAsync(file, nextSerialNumber);
-
-        //        return Ok(new { message = "File uploaded successfully." });
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return BadRequest(new { message = ex.Message });
-        //    }
-        //}
 
     }
 }

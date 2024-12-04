@@ -45,78 +45,121 @@ namespace EtsySync.Repositories
             await _dbContext.SaveChangesAsync();
         }
 
-        //public async Task<SalesItem?> GetLastGeneratedInvoiceAsync()
+        public async Task<bool> ExistsBySerialNumberAsync(long serialNumber)
+        {
+            return await _dbContext.SalesItems.AnyAsync(x => x.SerialNumber == serialNumber);
+        }
+
+        public async Task<byte[]> GetInvoiceFileDataBySerialNumberAsync(long serialNumber)
+        {
+            var invoice = await _dbContext.SalesItems
+                .Where(i => i.SerialNumber == serialNumber)
+                .Select(i => i.FileData)
+                .FirstOrDefaultAsync();
+
+            if (invoice == null || invoice.Length == 0)
+                throw new Exception($"Invoice file data for Serial Number {serialNumber} not found.");
+
+            string encryptionKey = await _encryptionService.GetEncryptionKeyAsync();
+            byte[] decryptedFileData = _encryptionService.DecryptData(invoice, encryptionKey);
+
+            return decryptedFileData;
+        }
+
+        public async Task<bool> DeleteInvoiceFileAndDataAsync(long serialNumber)
+        {
+            // gaunamas saskaitos failas naudojant identifikacijos numeri
+            var salesItem = await _dbContext.SalesItems
+                .Include(s => s.InvoiceItem)
+                .Include(s => s.Client)
+                .FirstOrDefaultAsync(s => s.SerialNumber == serialNumber);
+
+            if (salesItem == null)
+                return false;
+
+            // Istrinamas excel failo turinys
+            if (salesItem.InvoiceItem != null)
+            {
+                _dbContext.InvoiceItems.Remove(salesItem.InvoiceItem);
+            }
+
+            if (salesItem.Client != null)
+            {
+                _dbContext.Clients.Remove(salesItem.Client);
+            }
+
+            // Istrinamas excel failas
+            _dbContext.SalesItems.Remove(salesItem);
+
+            // Issaugomi pakitimai duomenu bazeje
+            await _dbContext.SaveChangesAsync();
+            return true;
+        }
+
+        //public async Task<bool> DeleteZipFileAsync(Guid zipFileId)
         //{
-        //    var salesItem = await _dbContext.SalesItems
-        //        .OrderByDescending(i => i.CreatedDate)
-        //        .FirstOrDefaultAsync();
+        //    // Gaunamas zip failas is duomenu bazes naudojant identifikacini numeri
+        //    var zipFile = await _dbContext.ZipFiles.FirstOrDefaultAsync(z => z.ZipFileId == zipFileId);
+        //    if (zipFile == null)
+        //        return false;
 
-        //    if (salesItem != null)
-        //    {
-
-        //        string encryptionKey = await _encryptionService.GetEncryptionKeyAsync();
-        //        salesItem.FileData = _encryptionService.DecryptData(salesItem.FileData, encryptionKey);
-        //    }
-
-        //    return salesItem;
-        //}
-
-        //public async Task<SalesItem?> GetInvoiceBySerialNumberAsync(int serialNumber)
-        //{
-        //    var salesItem = await _dbContext.SalesItems
-        //        .FirstOrDefaultAsync(i => i.SerialNumber == serialNumber);
-
-        //    if (salesItem != null)
-        //    {
-
-        //        string encryptionKey = await _encryptionService.GetEncryptionKeyAsync();
-        //        salesItem.FileData = _encryptionService.DecryptData(salesItem.FileData, encryptionKey);
-        //    }
-
-        //    return salesItem;
-        //}
-
-        //public async Task<IEnumerable<SalesItem>> GetAllInvoicesAsync()
-        //{
-        //    var salesItems = await _dbContext.SalesItems
-        //        .OrderBy(i => i.CreatedDate)
+        //    // Randami susija failai, naudojant tam tikrus kriterijus (e.g., filename patterns, zip file metadata)
+        //    var relatedExcelFiles = await _dbContext.SalesItems
+        //        .Where(s => s.FileName.StartsWith($"Invoices_{zipFileId}")) // Adjust this condition as needed
         //        .ToListAsync();
 
-        //    string encryptionKey = await _encryptionService.GetEncryptionKeyAsync();
-
-
-        //    foreach (var salesItem in salesItems)
+        //    // Istrinami susija excel failai ir su jais susijusi infomacija
+        //    foreach (var salesItem in relatedExcelFiles)
         //    {
-        //        salesItem.FileData = _encryptionService.DecryptData(salesItem.FileData, encryptionKey);
+        //        if (salesItem.InvoiceItem != null)
+        //        {
+        //            _dbContext.InvoiceItems.Remove(salesItem.InvoiceItem);
+        //        }
+
+        //        if (salesItem.Client != null)
+        //        {
+        //            _dbContext.Clients.Remove(salesItem.Client);
+        //        }
+
+        //        _dbContext.SalesItems.Remove(salesItem);
         //    }
 
-        //    return salesItems;
-        //}
+        //    // Istrinamas zip failas
+        //    _dbContext.ZipFiles.Remove(zipFile);
 
-        //public async Task UpdateInvoiceAsync(SalesItem salesItem)
-        //{
-
-        //    string encryptionKey = await _encryptionService.GetEncryptionKeyAsync();
-        //    salesItem.FileData = _encryptionService.EncryptData(salesItem.FileData, encryptionKey);
-
-        //    _dbContext.SalesItems.Update(salesItem);
+        //    // Pakitimai issaugomi duomenu bazeje
         //    await _dbContext.SaveChangesAsync();
+        //    return true;
         //}
 
-        //public async Task<SalesItem> GetByFileNameAsync(string fileName)
-        //{
-        //    return await _dbContext.SalesItems.FirstOrDefaultAsync(s => s.FileName == fileName);
-        //}
+        public async Task<bool> DeleteAllExcelFilesAndRelatedDataAsync()
+        {
+            // Gaunami visi Excel failai
+            var allSalesItems = await _dbContext.SalesItems.Include(s => s.InvoiceItem).Include(s => s.Client).ToListAsync();
+            if (!allSalesItems.Any())
+                return false;
 
-        //public async Task<SalesItem?> GetInvoiceBySalesIdAsync(Guid salesId)
-        //{
-        //    return await _dbContext.SalesItems
-        //        .FirstOrDefaultAsync(s => s.SalesId == salesId);
-        //}
+            // Istrinama atskirai issaugota Excel failo informacija
+            foreach (var salesItem in allSalesItems)
+            {
+                if (salesItem.InvoiceItem != null)
+                {
+                    _dbContext.InvoiceItems.Remove(salesItem.InvoiceItem);
+                }
 
+                if (salesItem.Client != null)
+                {
+                    _dbContext.Clients.Remove(salesItem.Client);
+                }
 
+                _dbContext.SalesItems.Remove(salesItem);
+            }
 
-
+            // Pakeitimai issaugomi duomenu bazeje
+            await _dbContext.SaveChangesAsync();
+            return true;
+        }
     }
 }
+
 
