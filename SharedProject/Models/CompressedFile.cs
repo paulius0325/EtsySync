@@ -1,7 +1,10 @@
-﻿namespace SharedProject.Models
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace SharedProject.Models
 {
     public class CompressedFile
     {
+        [Key]
         public Guid ZipFileId { get; set; } // Primary key
         public string FileName { get; set; } = string.Empty; // Failo pavadinimas
         public byte[] FileData { get; set; } = Array.Empty<byte>(); // Dvejetainis failo turinys

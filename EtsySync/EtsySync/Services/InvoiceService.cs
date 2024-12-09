@@ -1,7 +1,5 @@
-﻿using ClosedXML.Excel;
-using EtsyGateway;
-using EtsySync.Data;
-using EtsySync.Interface;
+﻿using EtsySync.Interface;
+using SharedProject.Dtos;
 using SharedProject.Models;
 using System.IO.Compression;
 
@@ -14,7 +12,6 @@ namespace EtsySync.Services
         private readonly IInvoiceRepository _invoiceRepository;
         private readonly IInvoiceGeneratorService _invoiceGeneratorService;
         private readonly ISalesDataService _salesDataService;
-        private readonly ReceiptTransactionsService _receiptTransactionsService;
         private readonly EncryptionService _encryptionService;
 
         public InvoiceService(
@@ -22,36 +19,37 @@ namespace EtsySync.Services
             IInvoiceRepository invoiceRepository,
             IInvoiceGeneratorService invoiceGeneratorService,
             ISalesDataService salesDataService,
-            ReceiptTransactionsService receiptTransactionsService,
             EncryptionService encryptionService)
         {
             _csvParserService = csvParserService;
             _invoiceRepository = invoiceRepository;
             _invoiceGeneratorService = invoiceGeneratorService;
             _salesDataService = salesDataService;
-            _receiptTransactionsService = receiptTransactionsService;
             _encryptionService = encryptionService;
         }
         //private readonly ISerialNumberService _serialNumberService;
         //ISerialNumberService serialNumberService,
         //_serialNumberService = serialNumberService;
 
-        public async Task<byte[]> GenerateInvoicesZipForCsvAsync(IFormFile file)
+        public async Task<Guid> GenerateInvoicesZipForCsvAsync(IFormFile file)
         {
+
             var salesItems = _csvParserService.ParseCsv(file);
             if (salesItems == null || !salesItems.Any())
                 throw new Exception("No valid sales data found in the CSV file.");
+
 
             using var memoryStream = new MemoryStream();
             using (var zipArchive = new ZipArchive(memoryStream, ZipArchiveMode.Create, true))
             {
                 foreach (var sale in salesItems)
                 {
-                    // Skenuojama Csv faila ar yra sutampanciu saskaitu su jau esamomis duomenu bazeje
+
                     if (await _invoiceRepository.ExistsBySerialNumberAsync(sale.SerialNumber))
                     {
-                        continue; // Pagreitina failo apdorojima, praleisdamas jau egzistuojancias duomenu bazeje saskaitas
+                        continue;
                     }
+
 
                     var invoiceItems = new List<InvoiceItem>
             {
@@ -63,7 +61,7 @@ namespace EtsySync.Services
                 }
             };
 
-                    // Generuojamas Excel saskaitos failas
+
                     byte[] invoiceFile = await _invoiceGeneratorService.GenerateInvoiceAsync(
                         new List<SalesItem> { sale },
                         invoiceItems,
@@ -79,12 +77,12 @@ namespace EtsySync.Services
                         }
                     );
 
-                    // saskaitu failai sudedami i zip faila
+
                     var zipEntry = zipArchive.CreateEntry($"Invoice_{sale.SerialNumber}.xlsx", CompressionLevel.Optimal);
                     using var entryStream = zipEntry.Open();
                     await entryStream.WriteAsync(invoiceFile, 0, invoiceFile.Length);
 
-                    // saskaitos failas issaugojamas duomenu bazeje
+
                     var generatedSalesItem = new SalesItem
                     {
                         SalesId = Guid.NewGuid(),
@@ -109,16 +107,20 @@ namespace EtsySync.Services
                 }
             }
 
+
             byte[] zipData = memoryStream.ToArray();
 
-            // zip failas issaugomas duomenu bazeje
+
+            var zipFileId = Guid.NewGuid();
             await _invoiceRepository.AddZipFileAsync(
+                zipFileId,
                 $"Invoices_{DateTime.UtcNow:yyyyMMddHHmmss}.zip",
                 zipData,
                 "Generated zip file containing all invoices."
             );
 
-            return zipData;
+
+            return zipFileId;
         }
 
         public async Task<byte[]> GetInvoiceBySerialNumberAsync(long serialNumber)
@@ -132,16 +134,38 @@ namespace EtsySync.Services
             return await _invoiceRepository.DeleteInvoiceFileAndDataAsync(serialNumber);
         }
 
-        //public async Task<bool> DeleteZipFileAndRelatedDataAsync(Guid zipFileId)
-        //{
-        //    return await _invoiceRepository.DeleteZipFileAsync(zipFileId);
-        //}
-
-        public async Task<bool> DeleteAllExcelFilesAndRelatedDataAsync()
+        public async Task<List<InvoiceMetadataDto>> GetInvoicesMetadataAsync()
         {
-            return await _invoiceRepository.DeleteAllExcelFilesAndRelatedDataAsync();
+
+            var invoices = await _invoiceRepository.GetAllInvoicesAsync();
+
+            return invoices.Select(invoice => new InvoiceMetadataDto
+            {
+                SalesId = invoice.SalesId,
+                FileName = invoice.FileName,
+                CreatedDate = invoice.CreatedDate
+            }).ToList();
         }
 
+        public async Task<byte[]> GetInvoicesZipByIdAsync(Guid uploadId)
+        {
+
+            var zipFile = await _invoiceRepository.GetZipFileByIdAsync(uploadId);
+
+            if (zipFile == null)
+            {
+                throw new Exception("Zip file not found.");
+            }
+
+
+            return zipFile.FileData;
+        }
+
+
+        //public async Task<bool> DeleteAllExcelFilesAndRelatedDataAsync()
+        //{
+        //    return await _invoiceRepository.DeleteAllExcelFilesAndRelatedDataAsync();
+        //}
 
         //public async Task GenerateAndSaveInvoiceAsync(int Shop_id, int Listing_id)
         //    {

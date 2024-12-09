@@ -31,11 +31,11 @@ namespace EtsySync.Repositories
             await _dbContext.SaveChangesAsync();
         }
 
-        public async Task AddZipFileAsync(string fileName, byte[] fileData, string? description = null)
+        public async Task<Guid> AddZipFileAsync(Guid zipFileId, string fileName, byte[] fileData, string? description = null)
         {
             var zipFile = new CompressedFile
             {
-                ZipFileId = Guid.NewGuid(),
+                ZipFileId = zipFileId,
                 FileName = fileName,
                 FileData = fileData,
                 CreatedDate = DateTime.UtcNow
@@ -43,6 +43,8 @@ namespace EtsySync.Repositories
 
             _dbContext.ZipFiles.Add(zipFile);
             await _dbContext.SaveChangesAsync();
+
+            return zipFileId;
         }
 
         public async Task<bool> ExistsBySerialNumberAsync(long serialNumber)
@@ -96,20 +98,24 @@ namespace EtsySync.Repositories
             return true;
         }
 
-        //public async Task<bool> DeleteZipFileAsync(Guid zipFileId)
+        public async Task<List<SalesItem>> GetAllInvoicesAsync()
+        {
+            return await _dbContext.SalesItems
+                .Include(s => s.Client)
+                .Include(s => s.InvoiceItem)
+                .ToListAsync();
+        }
+
+
+        //public async Task<bool> DeleteAllExcelFilesAndRelatedDataAsync()
         //{
-        //    // Gaunamas zip failas is duomenu bazes naudojant identifikacini numeri
-        //    var zipFile = await _dbContext.ZipFiles.FirstOrDefaultAsync(z => z.ZipFileId == zipFileId);
-        //    if (zipFile == null)
+        //    // Gaunami visi Excel failai
+        //    var allSalesItems = await _dbContext.SalesItems.Include(s => s.InvoiceItem).Include(s => s.Client).ToListAsync();
+        //    if (!allSalesItems.Any())
         //        return false;
 
-        //    // Randami susija failai, naudojant tam tikrus kriterijus (e.g., filename patterns, zip file metadata)
-        //    var relatedExcelFiles = await _dbContext.SalesItems
-        //        .Where(s => s.FileName.StartsWith($"Invoices_{zipFileId}")) // Adjust this condition as needed
-        //        .ToListAsync();
-
-        //    // Istrinami susija excel failai ir su jais susijusi infomacija
-        //    foreach (var salesItem in relatedExcelFiles)
+        //    // Istrinama atskirai issaugota Excel failo informacija
+        //    foreach (var salesItem in allSalesItems)
         //    {
         //        if (salesItem.InvoiceItem != null)
         //        {
@@ -124,40 +130,15 @@ namespace EtsySync.Repositories
         //        _dbContext.SalesItems.Remove(salesItem);
         //    }
 
-        //    // Istrinamas zip failas
-        //    _dbContext.ZipFiles.Remove(zipFile);
-
-        //    // Pakitimai issaugomi duomenu bazeje
+        //    // Pakeitimai issaugomi duomenu bazeje
         //    await _dbContext.SaveChangesAsync();
         //    return true;
         //}
 
-        public async Task<bool> DeleteAllExcelFilesAndRelatedDataAsync()
+        public async Task<CompressedFile> GetZipFileByIdAsync(Guid id)
         {
-            // Gaunami visi Excel failai
-            var allSalesItems = await _dbContext.SalesItems.Include(s => s.InvoiceItem).Include(s => s.Client).ToListAsync();
-            if (!allSalesItems.Any())
-                return false;
-
-            // Istrinama atskirai issaugota Excel failo informacija
-            foreach (var salesItem in allSalesItems)
-            {
-                if (salesItem.InvoiceItem != null)
-                {
-                    _dbContext.InvoiceItems.Remove(salesItem.InvoiceItem);
-                }
-
-                if (salesItem.Client != null)
-                {
-                    _dbContext.Clients.Remove(salesItem.Client);
-                }
-
-                _dbContext.SalesItems.Remove(salesItem);
-            }
-
-            // Pakeitimai issaugomi duomenu bazeje
-            await _dbContext.SaveChangesAsync();
-            return true;
+            return await _dbContext.ZipFiles
+                                   .FirstOrDefaultAsync(x => x.ZipFileId == id);
         }
     }
 }

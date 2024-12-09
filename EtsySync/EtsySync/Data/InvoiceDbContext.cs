@@ -1,9 +1,11 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using SharedProject.Models;
 
 namespace EtsySync.Data
 {
-    public class InvoiceDbContext : DbContext
+    public class InvoiceDbContext : IdentityDbContext<ApplicationUser>
     {
         public InvoiceDbContext(DbContextOptions<InvoiceDbContext> options) : base(options) { }
 
