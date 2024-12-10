@@ -12,7 +12,7 @@ namespace EtsySync
             if (!await roleManager.RoleExistsAsync("Admin"))
             {
                 await roleManager.CreateAsync(new IdentityRole("Admin"));
-                Console.WriteLine("Admin role created.");
+                Console.WriteLine("Administratoriaus rolė sukurta.");
             }
         }
     }
